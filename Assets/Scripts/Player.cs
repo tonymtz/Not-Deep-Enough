@@ -1,131 +1,150 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-	[SerializeField]
-	private float baseMovementSpeed = 5f;
+    [SerializeField]
+    private float baseMovementSpeed = 5f;
 
-	// internal components
-	private Rigidbody2D myRigidbody;
+    [SerializeField]
+    private GameObject weapon;
 
-	private SpriteRenderer mySpriteRenderer;
+    private Rigidbody2D myRigidbody;
 
-	private bool isGrounded;
+    private SpriteRenderer mySpriteRenderer;
 
-	private bool isFacingRight = true;
+    private bool isGrounded;
 
-	void Awake ()
-	{
-		myRigidbody = GetComponent<Rigidbody2D> ();
-		mySpriteRenderer = GetComponent<SpriteRenderer> ();
-	}
+    private bool isFacingRight = true;
 
-	void Start ()
-	{
-	}
+    private bool canAttack;
 
-	void Update ()
-	{
-		MovementWithTouchScreen ();
+    private bool isKeyLocked;
 
-		if (Debug.isDebugBuild) {
-			MovementWithKeyboard ();
+    private void Awake()
+    {
+        myRigidbody = GetComponent<Rigidbody2D>();
+        mySpriteRenderer = GetComponent<SpriteRenderer>();
 
-			//Debug.Log (CanAttack ());
-		}
+        if (weapon) { HideWeapon(); }
+    }
 
-		UpdateFacing ();
-	}
+    private void Update()
+    {
+        MovementWithTouchScreen();
 
-	void MovementWithTouchScreen ()
-	{
-		if (Input.touchCount < 1) {
-			return;
-		}
+        if (Debug.isDebugBuild) { MovementWithKeyboard(); }
+    }
 
-		Touch firstTouch = Input.GetTouch (0);
-		float velocityX = 0f;
+    private void MovementWithTouchScreen()
+    {
+        if (Input.touchCount == 0) { return; }
 
-		if (firstTouch.position.x > Screen.width / 2) {
-			velocityX = baseMovementSpeed;
-		} else if (firstTouch.position.x < Screen.width / 2) {
-			velocityX = baseMovementSpeed * -1;
-		} else {
-			velocityX = 0;
-		}
+        Touch firstTouch = Input.GetTouch(0);
 
-		Debug.Log (velocityX);
+        if (firstTouch.phase == TouchPhase.Ended) { isKeyLocked = false; }
 
-		Move (new Vector2 (velocityX, myRigidbody.velocity.y));
-	}
+        if (isKeyLocked) { return; }
 
-	void MovementWithKeyboard ()
-	{
-		float velocityX = 0f;
+        if (firstTouch.position.x > Screen.width / 2) { RightClick(); }
+        else if (firstTouch.position.x < Screen.width / 2) { LeftClick(); }
+    }
 
-		if (Input.GetKey (KeyCode.RightArrow)) {
-			velocityX = baseMovementSpeed;
-		} else if (Input.GetKey (KeyCode.LeftArrow)) {
-			velocityX = baseMovementSpeed * -1;
-		}
+    private void MovementWithKeyboard()
+    {
+        if (Input.GetKey(KeyCode.RightArrow)) { RightClick(); }
+        else if (Input.GetKey(KeyCode.LeftArrow)) { LeftClick(); }
+    }
 
-		Move (new Vector2 (velocityX, myRigidbody.velocity.y));
-	}
+    private void RightClick()
+    {
+        if (!isFacingRight) { ToggleFacing(); }
+        Action();
+    }
 
-	void Move (Vector2 velocity)
-	{
-		isGrounded = IsTouchingGroundLayer ();
+    private void LeftClick()
+    {
+        if (isFacingRight) { ToggleFacing(); }
+        Action();
+    }
 
-		if (IsTouchingGroundLayer ()) {
-			myRigidbody.velocity = velocity;
-		}
-	}
+    private void ToggleFacing()
+    {
+        isFacingRight = !isFacingRight;
 
-	bool IsTouchingGroundLayer ()
-	{
-		float hitLocation = 0.75f;
-		float hitDuration = 0.4f;
-		
-		Vector2 hit1Position = new Vector2 (transform.position.x - hitLocation, transform.position.y);
-		Vector2 hit2Position = new Vector2 (transform.position.x + hitLocation, transform.position.y);
+        if (isFacingRight) { transform.localScale = new Vector3(1, 1, 1); }
+        else { transform.localScale = new Vector3(-1, 1, 1); }
+    }
 
-		Debug.DrawRay (hit1Position, Vector2.down, Color.green, hitDuration);
-		Debug.DrawRay (hit2Position, Vector2.down, Color.blue, hitDuration);
+    private void Action()
+    {
+        if (IsEnemyNearby())
+        { Attack(); }
+        else
+        {
+            int direction = isFacingRight ? 1 : -1;
+            Move(new Vector2(baseMovementSpeed * direction, myRigidbody.velocity.y));
+        }
 
-		RaycastHit2D hit1 = Physics2D.Raycast (hit1Position, Vector2.down, hitDuration);
-		RaycastHit2D hit2 = Physics2D.Raycast (hit2Position, Vector2.down, hitDuration);
+    }
 
-		bool hit1CollidesWithFloor = hit1.collider != null && hit1.collider.gameObject.layer == 8;
-		bool hit2CollidesWithFloor = hit2.collider != null && hit2.collider.gameObject.layer == 8;
+    private void Attack()
+    {
+        if (!canAttack) { return; }
 
-		return hit1CollidesWithFloor || hit2CollidesWithFloor;
-	}
+        canAttack = false;
+        isKeyLocked = true;
+        weapon.SetActive(true);
+        weapon.GetComponent<Animator>().SetTrigger("StartAttack");
+        Invoke("HideWeapon", 0.25f);
+    }
 
-	bool CanAttack ()
-	{
-		float hitXLocation = 0.25f;
-		float hitYLocation = 0.5f;
-		float hitDuration = 1f;
+    private void HideWeapon()
+    {
+        weapon.SetActive(false);
+        canAttack = true;
+    }
 
-		Vector2 hitPosition = new Vector2 (transform.position.x + hitXLocation, transform.position.y + hitYLocation);
+    private void Move(Vector2 velocity)
+    {
+        isGrounded = IsTouchingGroundLayer();
 
-		Vector2 direction = isFacingRight ? Vector2.right : Vector2.left;
+        if (IsTouchingGroundLayer()) { myRigidbody.velocity = velocity; }
+    }
 
-		Debug.DrawRay (hitPosition, direction, Color.green, hitDuration / 2);
+    private bool IsTouchingGroundLayer()
+    {
+        float hitLocation = 0.75f;
+        float hitDuration = 0.4f;
 
-		RaycastHit2D hit = Physics2D.Raycast (hitPosition, direction, hitDuration);
+        Vector2 hit1Position = new Vector2(transform.position.x - hitLocation, transform.position.y);
+        Vector2 hit2Position = new Vector2(transform.position.x + hitLocation, transform.position.y);
 
-		if (hit.collider != null) {
-			Debug.Log (hit.collider.gameObject.layer);
-		}
+        Debug.DrawRay(hit1Position, Vector2.down, Color.green, hitDuration);
+        Debug.DrawRay(hit2Position, Vector2.down, Color.blue, hitDuration);
 
-		return hit.collider != null && hit.collider.gameObject.layer == 9;
-	}
+        RaycastHit2D hit1 = Physics2D.Raycast(hit1Position, Vector2.down, hitDuration);
+        RaycastHit2D hit2 = Physics2D.Raycast(hit2Position, Vector2.down, hitDuration);
 
-	void UpdateFacing ()
-	{
-		mySpriteRenderer.flipX = !isFacingRight;
-	}
+        bool hit1CollidesWithFloor = hit1.collider != null && hit1.collider.gameObject.layer == 8;
+        bool hit2CollidesWithFloor = hit2.collider != null && hit2.collider.gameObject.layer == 8;
+
+        return hit1CollidesWithFloor || hit2CollidesWithFloor;
+    }
+
+    private bool IsEnemyNearby()
+    {
+        float hitXLocation = 0.25f;
+        float hitYLocation = 0.5f;
+        float hitDuration = 1f;
+
+        Vector2 hitPosition = new Vector2(transform.position.x + hitXLocation, transform.position.y + hitYLocation);
+
+        Vector2 direction = isFacingRight ? Vector2.right : Vector2.left;
+
+        Debug.DrawRay(hitPosition, direction, Color.green, hitDuration / 2);
+
+        RaycastHit2D hit = Physics2D.Raycast(hitPosition, direction, hitDuration);
+
+        return hit.collider != null;
+    }
 }
