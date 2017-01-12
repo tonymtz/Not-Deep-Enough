@@ -16,7 +16,7 @@ public class Player : MonoBehaviour
 
     private bool isFacingRight = true;
 
-    private bool canAttack;
+    private bool canAttack = true;
 
     private bool isKeyLocked;
 
@@ -41,12 +41,42 @@ public class Player : MonoBehaviour
 
         Touch firstTouch = Input.GetTouch(0);
 
-        if (firstTouch.phase == TouchPhase.Ended) { isKeyLocked = false; }
+        bool isTouchOnRightSizeOfScreen = firstTouch.position.x > Screen.width / 2;
 
-        if (isKeyLocked) { return; }
+        if (firstTouch.phase == TouchPhase.Ended)
+        {
+            isKeyLocked = false;
+        }
+        else if (firstTouch.phase == TouchPhase.Began)
+        {
+            if (isTouchOnRightSizeOfScreen)
+            {
+                if (!isFacingRight) { ToggleFacing(); }
+            }
+            else
+            {
+                if (isFacingRight) { ToggleFacing(); }
+            }
 
-        if (firstTouch.position.x > Screen.width / 2) { RightClick(); }
-        else if (firstTouch.position.x < Screen.width / 2) { LeftClick(); }
+            if (IsEnemyNearby())
+            {
+                isKeyLocked = true;
+                Attack();
+            }
+            else
+            {
+                if (isTouchOnRightSizeOfScreen) { RightClick(); }
+                else { LeftClick(); }
+            }
+        }
+        else if (firstTouch.phase == TouchPhase.Stationary)
+        {
+            if (!isKeyLocked)
+            {
+                if (isTouchOnRightSizeOfScreen) { RightClick(); }
+                else { LeftClick(); }
+            }
+        }
     }
 
     private void MovementWithKeyboard()
@@ -77,14 +107,8 @@ public class Player : MonoBehaviour
 
     private void Action()
     {
-        if (IsEnemyNearby())
-        { Attack(); }
-        else
-        {
-            int direction = isFacingRight ? 1 : -1;
-            Move(new Vector2(baseMovementSpeed * direction, myRigidbody.velocity.y));
-        }
-
+        int direction = isFacingRight ? 1 : -1;
+        Move(new Vector2(baseMovementSpeed * direction, myRigidbody.velocity.y));
     }
 
     private void Attack()
