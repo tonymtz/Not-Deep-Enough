@@ -12,6 +12,8 @@ public class Player : MonoBehaviour
 
     private SpriteRenderer mySpriteRenderer;
 
+	private Animator myAnimator;
+
     private bool isGrounded;
 
     private bool isFacingRight = true;
@@ -20,19 +22,28 @@ public class Player : MonoBehaviour
 
     private bool isKeyLocked;
 
+	private bool isRunning;
+
     private void Awake()
     {
         myRigidbody = GetComponent<Rigidbody2D>();
         mySpriteRenderer = GetComponent<SpriteRenderer>();
+		myAnimator = GetComponent<Animator>();
 
         if (weapon) { HideWeapon(); }
     }
 
     private void Update()
     {
-        MovementWithTouchScreen();
+		isRunning = false;
+        
+		MovementWithTouchScreen();
 
         if (Debug.isDebugBuild) { MovementWithKeyboard(); }
+
+		if (isRunning != myAnimator.GetBool ("IsRunning")) {
+			myAnimator.SetBool ("IsRunning", isRunning);
+		}
     }
 
     private void MovementWithTouchScreen()
@@ -65,36 +76,59 @@ public class Player : MonoBehaviour
             }
             else
             {
-                if (isTouchOnRightSizeOfScreen) { RightClick(); }
-                else { LeftClick(); }
+				Move ();
             }
         }
         else if (firstTouch.phase == TouchPhase.Stationary)
         {
             if (!isKeyLocked)
             {
-                if (isTouchOnRightSizeOfScreen) { RightClick(); }
-                else { LeftClick(); }
+				if (isTouchOnRightSizeOfScreen)
+				{
+					if (!isFacingRight) { ToggleFacing(); }
+				}
+				else
+				{
+					if (isFacingRight) { ToggleFacing(); }
+				}
+
+				Move ();
             }
         }
     }
 
     private void MovementWithKeyboard()
     {
-        if (Input.GetKey(KeyCode.RightArrow)) { RightClick(); }
-        else if (Input.GetKey(KeyCode.LeftArrow)) { LeftClick(); }
-    }
+		if (Input.GetKeyUp (KeyCode.LeftArrow) || Input.GetKeyUp (KeyCode.RightArrow)) {
+			isKeyLocked = false;
+		} else if (Input.GetKeyDown (KeyCode.LeftArrow) || Input.GetKeyDown (KeyCode.RightArrow)) {
+			if (Input.GetKey (KeyCode.RightArrow)) {
+				if (!isFacingRight) { ToggleFacing (); }
+			} else {
+				if (isFacingRight) { ToggleFacing(); }
+			}
 
-    private void RightClick()
-    {
-        if (!isFacingRight) { ToggleFacing(); }
-        Action();
-    }
+			if (IsEnemyNearby())
+			{
+				isKeyLocked = true;
+				Attack();
+			}
+			else
+			{
+				Move ();
+			}
+		} else if (Input.GetKey (KeyCode.LeftArrow) || Input.GetKey (KeyCode.RightArrow)) {
+			if (!isKeyLocked)
+			{
+				if (Input.GetKey (KeyCode.RightArrow)) {
+					if (!isFacingRight) { ToggleFacing (); }
+				} else {
+					if (isFacingRight) { ToggleFacing(); }
+				}
 
-    private void LeftClick()
-    {
-        if (isFacingRight) { ToggleFacing(); }
-        Action();
+				Move ();
+			}
+		}
     }
 
     private void ToggleFacing()
@@ -105,12 +139,6 @@ public class Player : MonoBehaviour
         else { transform.localScale = new Vector3(-1, 1, 1); }
     }
 
-    private void Action()
-    {
-        int direction = isFacingRight ? 1 : -1;
-        Move(new Vector2(baseMovementSpeed * direction, myRigidbody.velocity.y));
-    }
-
     private void Attack()
     {
         if (!canAttack) { return; }
@@ -119,7 +147,8 @@ public class Player : MonoBehaviour
         isKeyLocked = true;
         weapon.SetActive(true);
         weapon.GetComponent<Animator>().SetTrigger("StartAttack");
-        Invoke("HideWeapon", 0.25f);
+		myAnimator.SetTrigger("StartAttack");
+        Invoke("HideWeapon", 0.4f);
     }
 
     private void HideWeapon()
@@ -128,11 +157,18 @@ public class Player : MonoBehaviour
         canAttack = true;
     }
 
-    private void Move(Vector2 velocity)
+    private void Move()
     {
         isGrounded = IsTouchingGroundLayer();
 
-        if (IsTouchingGroundLayer()) { myRigidbody.velocity = velocity; }
+		if (!isGrounded) { return; }
+
+		int direction = isFacingRight ? 1 : -1;
+		Vector2 velocity = new Vector2 (baseMovementSpeed * direction, myRigidbody.velocity.y);
+
+		myRigidbody.velocity = velocity;
+
+		isRunning = true;
     }
 
     private bool IsTouchingGroundLayer()
@@ -157,11 +193,10 @@ public class Player : MonoBehaviour
 
     private bool IsEnemyNearby()
     {
-        float hitXLocation = 0.25f;
         float hitYLocation = 0.5f;
-        float hitDuration = 1f;
+        float hitDuration = 1.5f;
 
-        Vector2 hitPosition = new Vector2(transform.position.x + hitXLocation, transform.position.y + hitYLocation);
+        Vector2 hitPosition = new Vector2(transform.position.x, transform.position.y + hitYLocation);
 
         Vector2 direction = isFacingRight ? Vector2.right : Vector2.left;
 
