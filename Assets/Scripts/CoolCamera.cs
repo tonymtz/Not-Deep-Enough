@@ -7,24 +7,13 @@ public class CoolCamera : MonoBehaviour
 	private Vector3 offset;
 
 	[SerializeField]
-	private float time = 0.5f;
+	private float time = 0.1f;
 
 	[SerializeField]
 	private bool isHorizontalLocked;
 
 	[SerializeField]
 	private Transform target;
-
-	private Transform myTransform;
-
-	private float interpVelocity;
-
-	private Vector3 targetPos;
-
-	void Awake ()
-	{
-		myTransform = GetComponent<Transform> ();
-	}
 
 	void Start ()
 	{
@@ -37,25 +26,14 @@ public class CoolCamera : MonoBehaviour
 	void Update ()
 	{
 		if (target != null) {
-			Vector3 originalPosition = myTransform.position;
-			Vector3 goalPosition = myTransform.position;
+			Vector3 goalPosition = target.position;
+			goalPosition.z = transform.position.z;
 
-			interpVelocity = 
+			if (isHorizontalLocked) {
+				goalPosition.x = transform.position.x;
+			}
 
-			myTransform.position = Vector3.Lerp (myTransform.position, goalPosition + offset, time);
+			transform.position = Vector3.Lerp (transform.position, goalPosition + offset, time);
 		}
-		
-//		if (target == null) {
-//			Vector3 posNoZ = myTransform.position;
-//			posNoZ.z = target.position.z;
-//
-//			Vector3 targetDirection = (target.position - posNoZ);
-//
-//			interpVelocity = targetDirection.magnitude * 5f;
-//
-//			targetPos = myTransform.position + (targetDirection.normalized * interpVelocity * Time.deltaTime);
-//
-//			myTransform.position = Vector3.Lerp (myTransform.position, targetPos + offset, time);
-//		}
 	}
 }

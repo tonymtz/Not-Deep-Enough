@@ -44,6 +44,11 @@ public class Player : MonoBehaviour
 		if (isRunning != myAnimator.GetBool ("IsRunning")) {
 			myAnimator.SetBool ("IsRunning", isRunning);
 		}
+
+		if (!IsTouchingGroundLayer ()) {
+			Vector2 velocity = new Vector2 (0f, myRigidbody.velocity.y);
+			myRigidbody.velocity = velocity;
+		}
     }
 
     private void MovementWithTouchScreen()
@@ -164,7 +169,7 @@ public class Player : MonoBehaviour
 		if (!isGrounded) { return; }
 
 		int direction = isFacingRight ? 1 : -1;
-		Vector2 velocity = new Vector2 (baseMovementSpeed * direction, myRigidbody.velocity.y);
+		Vector2 velocity = new Vector2 (baseMovementSpeed * direction * Time.deltaTime, myRigidbody.velocity.y);
 
 		myRigidbody.velocity = velocity;
 
@@ -204,6 +209,6 @@ public class Player : MonoBehaviour
 
         RaycastHit2D hit = Physics2D.Raycast(hitPosition, direction, hitDuration);
 
-        return hit.collider != null;
+		return hit.collider != null && hit.collider.gameObject.layer == 9;
     }
 }
